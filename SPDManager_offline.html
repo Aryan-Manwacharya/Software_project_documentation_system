@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SPD Manager – Software Project Documentation</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f8f7;
+    --bg-tertiary: #f1f0ee;
+    --text-primary: #1a1a1a;
+    --text-secondary: #555550;
+    --text-tertiary: #999993;
+    --border-light: rgba(0,0,0,0.09);
+    --border-mid: rgba(0,0,0,0.16);
+    --accent: #2563eb;
+    --accent-dark: #1d4ed8;
+    --radius-sm: 6px;
+    --radius-md: 9px;
+    --radius-lg: 13px;
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+  html, body, #root { height: 100%; font-family: var(--font); background: var(--bg-tertiary); color: var(--text-primary); }
+  button { font-family: inherit; cursor: pointer; }
+  input, select, textarea { font-family: inherit; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 10px; }
+
+  /* ── Layout ── */
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .header {
+    background: var(--bg-primary); border-bottom: 1px solid var(--border-light);
+    padding: 0 18px; height: 52px; display: flex; align-items: center; gap: 12px;
+    flex-shrink: 0; position: relative; z-index: 10;
+  }
+  .logo { font-size: 15px; font-weight: 700; letter-spacing: -0.5px; color: var(--text-primary); }
+  .logo-sub { font-size: 11px; color: var(--text-tertiary); font-weight: 400; margin-left: 6px; }
+  .spacer { flex: 1; }
+  .body { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 220px; background: var(--bg-secondary);
+    border-right: 1px solid var(--border-light);
+    display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden;
+    transition: width 0.2s ease;
+  }
+  .sidebar.collapsed { width: 0; overflow: hidden; }
+  .sidebar-header {
+    padding: 10px 12px; border-bottom: 1px solid var(--border-light);
+    display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+  }
+  .sidebar-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--text-tertiary); }
+  .tree { flex: 1; overflow-y: auto; padding: 6px; }
+  .tree-item {
+    display: flex; align-items: center; gap: 7px; padding: 5px 8px;
+    border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; color: var(--text-primary);
+    user-select: none; white-space: nowrap;
+  }
+  .tree-item:hover { background: var(--bg-primary); }
+  .tree-item.active { background: var(--bg-primary); font-weight: 600; }
+  .tree-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .tree-count { font-size: 11px; color: var(--text-tertiary); }
+  .sidebar-stats {
+    padding: 10px 12px; border-top: 1px solid var(--border-light);
+    display: flex; gap: 0;
+  }
+  .stat-item { flex: 1; text-align: center; }
+  .stat-val { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+  .stat-lbl { font-size: 10px; color: var(--text-tertiary); }
+
+  /* ── Main ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .toolbar {
+    padding: 8px 16px; border-bottom: 1px solid var(--border-light);
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-primary); flex-shrink: 0; flex-wrap: wrap;
+  }
+  .breadcrumb { flex: 1; display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text-secondary); flex-wrap: wrap; }
+  .bc-item { cursor: pointer; }
+  .bc-item:hover { color: var(--text-primary); text-decoration: underline; }
+  .bc-sep { color: var(--text-tertiary); }
+  .bc-active { color: var(--text-primary); font-weight: 600; cursor: default; }
+  .content { flex: 1; overflow-y: auto; padding: 16px; }
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 6px 13px; border: 1px solid var(--border-mid); border-radius: var(--radius-sm);
+    font-size: 12px; background: var(--bg-primary); color: var(--text-primary); font-weight: 500;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: var(--bg-secondary); }
+  .btn-primary {
+    background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600;
+  }
+  .btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+  .btn-icon {
+    width: 26px; height: 26px; border: 1px solid var(--border-mid); border-radius: var(--radius-sm);
+    background: none; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: var(--text-secondary); flex-shrink: 0;
+  }
+  .btn-icon:hover { background: var(--bg-secondary); color: var(--text-primary); }
+
+  /* ── Search / Filter ── */
+  .search-wrap { position: relative; }
+  .search-ico { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--text-tertiary); pointer-events: none; }
+  .search-input {
+    padding: 6px 10px 6px 28px; border: 1px solid var(--border-mid); border-radius: var(--radius-sm);
+    font-size: 13px; background: var(--bg-secondary); color: var(--text-primary);
+    width: 200px; outline: none;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .filter-select {
+    padding: 6px 8px; border: 1px solid var(--border-mid); border-radius: var(--radius-sm);
+    font-size: 12px; background: var(--bg-secondary); color: var(--text-primary); outline: none;
+  }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--text-tertiary); margin-bottom: 10px; margin-top: 4px;
+  }
+
+  /* ── Grid ── */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; margin-bottom: 20px; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg-primary); border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg); padding: 13px 13px 11px; position: relative;
+    transition: border-color 0.15s; overflow: hidden;
+  }
+  .card:hover { border-color: var(--border-mid); }
+  .card.clickable { cursor: pointer; }
+  .card-icon { font-size: 26px; margin-bottom: 7px; }
+  .card-name { font-size: 12px; font-weight: 600; color: var(--text-primary); word-break: break-word; line-height: 1.4; margin-bottom: 5px; }
+  .card-meta { font-size: 11px; color: var(--text-secondary); margin-bottom: 5px; line-height: 1.4; }
+  .card-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+  .card-del { display: none; position: absolute; top: 7px; right: 7px; }
+  .card:hover .card-del { display: flex; }
+  .card-accent { height: 4px; position: absolute; top: 0; left: 0; right: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .path-hint { font-size: 10px; color: var(--text-tertiary); margin-top: 5px; line-height: 1.4; }
+
+  /* ── Project card ── */
+  .project-card {
+    background: var(--bg-primary); border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg); overflow: hidden; position: relative;
+    cursor: pointer; transition: border-color 0.15s;
+  }
+  .project-card:hover { border-color: var(--border-mid); }
+  .project-accent { height: 5px; }
+  .project-body { padding: 12px 14px 12px; }
+  .project-name { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; word-break: break-word; }
+  .project-desc { font-size: 11px; color: var(--text-secondary); margin-bottom: 9px; line-height: 1.5; }
+  .project-stats { display: flex; gap: 12px; font-size: 11px; color: var(--text-tertiary); }
+  .project-del { display: none; position: absolute; top: 9px; right: 9px; }
+  .project-card:hover .project-del { display: flex; }
+
+  /* ── List view ── */
+  .list-container { background: var(--bg-primary); border: 1px solid var(--border-light); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 20px; }
+  .list-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    border-bottom: 1px solid var(--border-light); font-size: 13px;
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-row.clickable { cursor: pointer; }
+  .list-row:hover { background: var(--bg-secondary); }
+  .list-icon { font-size: 16px; flex-shrink: 0; }
+  .list-name { flex: 1; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .list-tags { display: flex; gap: 5px; align-items: center; }
+  .list-meta { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; }
+
+  /* ── Badges ── */
+  .badge { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+  .status-badge { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+
+  /* ── Empty state ── */
+  .empty { text-align: center; padding: 60px 20px; }
+  .empty-icon { font-size: 38px; margin-bottom: 12px; }
+  .empty-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+  .empty-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.38);
+    display: flex; align-items: center; justify-content: center; z-index: 1000;
+  }
+  .modal {
+    background: var(--bg-primary); border: 1px solid var(--border-mid);
+    border-radius: var(--radius-lg); padding: 22px 24px; width: 360px;
+    max-width: 95vw; max-height: 92vh; overflow-y: auto;
+    animation: pop .18s ease;
+  }
+  @keyframes pop { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-title { font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
+  .modal-label { font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px; font-weight: 500; }
+  .modal-input {
+    width: 100%; padding: 8px 11px; border: 1px solid var(--border-mid);
+    border-radius: var(--radius-sm); font-size: 13px;
+    background: var(--bg-secondary); color: var(--text-primary);
+    margin-bottom: 12px; outline: none; transition: border-color 0.15s;
+  }
+  .modal-input:focus { border-color: var(--accent); }
+  .modal-textarea { height: 68px; resize: none; }
+  .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .color-picker { display: flex; gap: 9px; margin-bottom: 12px; }
+  .color-dot {
+    width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+    border: 3px solid transparent; transition: border-color 0.15s;
+  }
+  .color-dot.selected { border-color: var(--text-primary); }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 22px; right: 22px;
+    background: #1f2937; color: #f9fafb; padding: 9px 16px;
+    border-radius: var(--radius-md); font-size: 13px; font-weight: 500;
+    z-index: 9999; opacity: 0; transition: opacity 0.22s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ── View toggle ── */
+  .view-toggle { display: flex; border: 1px solid var(--border-mid); border-radius: var(--radius-sm); overflow: hidden; }
+  .view-btn { padding: 5px 9px; font-size: 13px; background: none; border: none; color: var(--text-secondary); }
+  .view-btn.active { background: var(--bg-secondary); color: var(--text-primary); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+// ── Minimal React-like runtime (no dependencies) ──
+// We use vanilla JS with a simple state management pattern
+// No React needed — pure DOM manipulation
+
+const COLORS = {
+  design:   { bg: '#ede9fe', text: '#5b21b6', border: '#c4b5fd' },
+  backend:  { bg: '#dcfce7', text: '#166534', border: '#86efac' },
+  frontend: { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' },
+  devops:   { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  api:      { bg: '#fce7f3', text: '#9d174d', border: '#f9a8d4' },
+  general:  { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' },
+  docs:     { bg: '#e0f2fe', text: '#075985', border: '#7dd3fc' },
+  testing:  { bg: '#fff7ed', text: '#9a3412', border: '#fdba74' },
+};
+
+const FILE_ICONS = { pdf:'📄', doc:'📝', xls:'📊', img:'🖼️', code:'💻', vid:'🎬', zip:'📦', ppt:'📑', txt:'📃' };
+
+const STATUS = {
+  draft:      { label:'Draft',       bg:'#f3f4f6', text:'#374151' },
+  review:     { label:'In Review',   bg:'#fef3c7', text:'#92400e' },
+  approved:   { label:'Approved',    bg:'#dcfce7', text:'#166534' },
+  deprecated: { label:'Deprecated',  bg:'#fee2e2', text:'#991b1b' },
+};
+
+const PROJECT_COLORS = {
+  blue:   '#2563eb',
+  teal:   '#0f6e56',
+  purple: '#534AB7',
+  coral:  '#c2410c',
+  amber:  '#b45309',
+};
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+// ── State ──
+let state = {
+  projects: [], folders: [], files: [],
+  selProject: null, selFolder: null,
+  search: '', tagFilter: '',
+  modal: null, form: {},
+  view: 'grid', sideCollapsed: false,
+};
+
+function loadState() {
+  try {
+    const s = localStorage.getItem('spd-manager-v2');
+    if (s) {
+      const d = JSON.parse(s);
+      state.projects = d.projects || [];
+      state.folders  = d.folders  || [];
+      state.files    = d.files    || [];
+    }
+  } catch(_) {}
+}
+
+function saveState() {
+  try {
+    localStorage.setItem('spd-manager-v2', JSON.stringify({
+      projects: state.projects, folders: state.folders, files: state.files,
+    }));
+  } catch(_) {}
+}
+
+// ── Toast ──
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ── Render helpers ──
+function badge(tag) {
+  const c = COLORS[tag] || COLORS.general;
+  return `<span class="badge" style="background:${c.bg};color:${c.text};border:1px solid ${c.border}">${tag}</span>`;
+}
+function statusBadge(s) {
+  const c = STATUS[s] || STATUS.draft;
+  return `<span class="status-badge" style="background:${c.bg};color:${c.text}">${c.label}</span>`;
+}
+function fileIcon(type) { return FILE_ICONS[type] || '📄'; }
+
+function getPath(folderId) {
+  const parts = [];
+  let f = state.folders.find(x => x.id === folderId);
+  while (f) { parts.unshift(f.name); f = state.folders.find(x => x.id === f.parentId); }
+  const p = state.projects.find(x => x.id === state.selProject);
+  if (p) parts.unshift(p.name);
+  return parts.join(' › ') || 'Root';
+}
+
+// ── Main render ──
+function render() {
+  const root = document.getElementById('root');
+  root.innerHTML = buildApp();
+  attachEvents();
+}
+
+function buildApp() {
+  return `
+  <div class="app">
+    ${buildHeader()}
+    <div class="body">
+      ${buildSidebar()}
+      <div class="main">
+        ${buildToolbar()}
+        <div class="content" id="content">${buildContent()}</div>
+      </div>
+    </div>
+  </div>
+  ${buildModal()}
+  <div class="toast" id="toast"></div>`;
+}
+
+function buildHeader() {
+  return `
+  <div class="header">
+    <button class="btn-icon" onclick="toggleSide()">☰</button>
+    <span class="logo">SPD Manager<span class="logo-sub">Software Project Documentation</span></span>
+    <div class="spacer"></div>
+    <div class="search-wrap">
+      <span class="search-ico">⌕</span>
+      <input class="search-input" id="searchInput" placeholder="Search everything…" value="${escHtml(state.search)}" oninput="onSearch(this.value)" />
+    </div>
+    <select class="filter-select" onchange="onTagFilter(this.value)">
+      <option value="">All tags</option>
+      ${Object.keys(COLORS).map(t => `<option value="${t}" ${state.tagFilter===t?'selected':''}>${t}</option>`).join('')}
+    </select>
+    <div class="view-toggle">
+      <button class="view-btn ${state.view==='grid'?'active':''}" onclick="setView('grid')">⊞</button>
+      <button class="view-btn ${state.view==='list'?'active':''}" onclick="setView('list')">☰</button>
+    </div>
+  </div>`;
+}
+
+function buildSidebar() {
+  const projects = state.projects;
+  return `
+  <div class="sidebar ${state.sideCollapsed?'collapsed':''}">
+    <div class="sidebar-header">
+      <span class="sidebar-label">Projects</span>
+      <button class="btn-icon" onclick="openModal('project')" title="New project">+</button>
+    </div>
+    <div class="tree">
+      <div class="tree-item ${!state.selProject&&!state.search?'active':''}" onclick="goHome()">
+        <span style="font-size:13px">◈</span>
+        <span class="tree-name">All projects</span>
+      </div>
+      ${projects.map(p => {
+        const color = PROJECT_COLORS[p.color] || '#2563eb';
+        const isActive = state.selProject === p.id && !state.selFolder;
+        const subFolders = state.folders.filter(f => f.projectId === p.id && !f.parentId);
+        return `
+        <div class="tree-item ${isActive?'active':''}" onclick="selectProject('${p.id}')">
+          <span class="tree-dot" style="background:${color}"></span>
+          <span class="tree-name">${escHtml(p.name)}</span>
+          <span class="tree-count">${state.files.filter(f=>f.projectId===p.id).length}</span>
+        </div>
+        ${state.selProject === p.id ? subFolders.map(f => {
+          const isFActive = state.selFolder === f.id;
+          const subSub = state.folders.filter(sf => sf.parentId === f.id);
+          return `
+          <div class="tree-item ${isFActive?'active':''}" style="padding-left:22px" onclick="selectFolder('${f.id}')">
+            <span style="font-size:11px;color:var(--text-tertiary)">▸</span>
+            <span class="tree-name">${escHtml(f.name)}</span>
+          </div>
+          ${state.selFolder === f.id ? subSub.map(sf => `
+            <div class="tree-item ${state.selFolder===sf.id?'active':''}" style="padding-left:36px" onclick="selectFolder('${sf.id}')">
+              <span style="font-size:11px;color:var(--text-tertiary)">▹</span>
+              <span class="tree-name">${escHtml(sf.name)}</span>
+            </div>`).join('') : ''}`;
+        }).join('') : ''}`;
+      }).join('')}
+      ${projects.length === 0 ? `<div style="font-size:12px;color:var(--text-tertiary);padding:12px 8px;line-height:1.6">No projects yet.<br>Click + to create one.</div>` : ''}
+    </div>
+    <div class="sidebar-stats">
+      ${[['Projects', state.projects.length], ['Folders', state.folders.length], ['Files', state.files.length]].map(([l,v]) =>
+        `<div class="stat-item"><div class="stat-val">${v}</div><div class="stat-lbl">${l}</div></div>`
+      ).join('')}
+    </div>
+  </div>`;
+}
+
+function buildToolbar() {
+  const crumbs = [];
+  if (state.selProject) {
+    const p = state.projects.find(x => x.id === state.selProject);
+    if (p) crumbs.push({ label: p.name, action: `selectProject('${p.id}')` });
+  }
+  if (state.selFolder) {
+    const ancestors = [];
+    let f = state.folders.find(x => x.id === state.selFolder);
+    while (f) { ancestors.unshift(f); f = state.folders.find(x => x.id === f.parentId); }
+    ancestors.forEach(f => crumbs.push({ label: f.name, action: `selectFolder('${f.id}')` }));
+  }
+
+  const bcHtml = crumbs.length === 0
+    ? `<span class="bc-active">Home</span>`
+    : `<span class="bc-item" onclick="goHome()">Home</span>` +
+      crumbs.map((c, i) =>
+        `<span class="bc-sep">›</span><span class="${i===crumbs.length-1?'bc-active':'bc-item'}" onclick="${c.action}">${escHtml(c.label)}</span>`
+      ).join('');
+
+  const searchNote = state.search ? `<span style="font-size:11px;color:var(--text-tertiary)">· Search: "${escHtml(state.search)}"</span>` : '';
+
+  return `
+  <div class="toolbar">
+    <div class="breadcrumb">${bcHtml} ${searchNote}</div>
+    ${state.selProject ? `
+      <button class="btn" onclick="openModal('folder')">+ Folder</button>
+      <button class="btn btn-primary" onclick="openModal('file')">+ File</button>
+    ` : ''}
+  </div>`;
+}
+
+function buildContent() {
+  const { folders, files, projects, isSearch } = getItems();
+
+  if (projects) {
+    if (!projects.length) return `
+      <div class="empty">
+        <div class="empty-icon">◈</div>
+        <div class="empty-title">No projects yet</div>
+        <div class="empty-sub">Create your first project to organize your documentation</div>
+        <button class="btn btn-primary" onclick="openModal('project')">+ New project</button>
+      </div>`;
+    return `
+      <div class="section-label">All projects</div>
+      <div class="grid">
+        ${projects.map(p => {
+          const color = PROJECT_COLORS[p.color] || '#2563eb';
+          const fCount = state.folders.filter(f => f.projectId === p.id).length;
+          const dCount = state.files.filter(f => f.projectId === p.id).length;
+          return `
+          <div class="project-card" onclick="selectProject('${p.id}')">
+            <div class="project-accent" style="background:${color}"></div>
+            <button class="btn-icon project-del" onclick="event.stopPropagation();deleteItem('project','${p.id}')" title="Delete">✕</button>
+            <div class="project-body">
+              <div class="project-name">${escHtml(p.name)}</div>
+              ${p.desc ? `<div class="project-desc">${escHtml(p.desc.slice(0,70))}${p.desc.length>70?'…':''}</div>` : ''}
+              <div class="project-stats"><span>📁 ${fCount} folders</span><span>📄 ${dCount} files</span></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  if (!folders.length && !files.length) {
+    return `<div class="empty">
+      <div class="empty-icon">${isSearch ? '🔍' : '📂'}</div>
+      <div class="empty-title">${isSearch ? `No results for "${escHtml(state.search)}"` : 'Nothing here yet'}</div>
+      <div class="empty-sub">${isSearch ? 'Try a different search term or tag' : 'Add folders and files using the buttons above'}</div>
+    </div>`;
+  }
+
+  if (state.view === 'list') return buildListView(folders, files, isSearch);
+  return buildGridView(folders, files, isSearch);
+}
+
+function buildGridView(folders, files, isSearch) {
+  let html = '';
+  if (folders.length) {
+    html += `<div class="section-label">Folders</div><div class="grid">`;
+    folders.forEach(f => {
+      const sub = state.folders.filter(x => x.parentId === f.id).length;
+      const fc = state.files.filter(x => x.folderId === f.id).length;
+      html += `
+      <div class="card clickable" onclick="selectFolder('${f.id}')">
+        <button class="btn-icon card-del" onclick="event.stopPropagation();deleteItem('folder','${f.id}')" title="Delete">✕</button>
+        <div class="card-icon">📁</div>
+        <div class="card-name">${escHtml(f.name)}</div>
+        <div class="card-meta">${sub} sub · ${fc} files</div>
+        <div class="card-tags">${badge(f.tag)}</div>
+        ${isSearch ? `<div class="path-hint">${escHtml(getPath(f.parentId||''))}</div>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  if (files.length) {
+    html += `<div class="section-label" style="margin-top:${folders.length?12:0}px">Files</div><div class="grid">`;
+    files.forEach(f => {
+      html += `
+      <div class="card">
+        <button class="btn-icon card-del" onclick="deleteItem('file','${f.id}')" title="Delete">✕</button>
+        <div class="card-icon">${fileIcon(f.type)}</div>
+        <div class="card-name">${escHtml(f.name)}</div>
+        ${f.desc ? `<div class="card-meta">${escHtml(f.desc.slice(0,45))}${f.desc.length>45?'…':''}</div>` : ''}
+        <div class="card-tags">${badge(f.tag)} ${statusBadge(f.status)}</div>
+        <div style="font-size:10px;color:var(--text-tertiary);margin-top:5px">v${escHtml(f.version)}</div>
+        ${isSearch ? `<div class="path-hint">${escHtml(getPath(f.folderId))}</div>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  return html;
+}
+
+function buildListView(folders, files, isSearch) {
+  let html = '';
+  if (folders.length) {
+    html += `<div class="section-label">Folders</div><div class="list-container">`;
+    folders.forEach(f => {
+      html += `
+      <div class="list-row clickable" onclick="selectFolder('${f.id}')">
+        <span class="list-icon">📁</span>
+        <span class="list-name">${escHtml(f.name)}</span>
+        <div class="list-tags">${badge(f.tag)}</div>
+        ${isSearch ? `<span class="list-meta">${escHtml(getPath(f.parentId||''))}</span>` : ''}
+        <button class="btn-icon" onclick="event.stopPropagation();deleteItem('folder','${f.id}')" title="Delete">✕</button>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  if (files.length) {
+    html += `<div class="section-label" style="margin-top:${folders.length?12:0}px">Files</div><div class="list-container">`;
+    files.forEach(f => {
+      html += `
+      <div class="list-row">
+        <span class="list-icon">${fileIcon(f.type)}</span>
+        <span class="list-name">${escHtml(f.name)}</span>
+        <div class="list-tags">${badge(f.tag)} ${statusBadge(f.status)}</div>
+        <span class="list-meta">v${escHtml(f.version)}</span>
+        ${isSearch ? `<span class="list-meta">${escHtml(getPath(f.folderId))}</span>` : ''}
+        <button class="btn-icon" onclick="deleteItem('file','${f.id}')" title="Delete">✕</button>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  return html;
+}
+
+function buildModal() {
+  if (!state.modal) return '';
+  const { modal: type, form } = state;
+
+  const projectFolders = state.selProject
+    ? state.folders.filter(f => f.projectId === state.selProject)
+    : [];
+  const rootFolders = projectFolders.filter(f => !f.parentId);
+
+  let body = '';
+  if (type === 'project') {
+    body = `
+      <label class="modal-label">Project name</label>
+      <input class="modal-input" id="mi-name" placeholder="e.g. E-commerce App" value="${escHtml(form.name||'')}" oninput="updateForm('name',this.value)" autofocus />
+      <label class="modal-label">Description</label>
+      <textarea class="modal-input modal-textarea" id="mi-desc" placeholder="What is this project about?" oninput="updateForm('desc',this.value)">${escHtml(form.desc||'')}</textarea>
+      <label class="modal-label">Color</label>
+      <div class="color-picker">
+        ${Object.entries(PROJECT_COLORS).map(([k,v]) =>
+          `<div class="color-dot ${form.color===k?'selected':''}" style="background:${v}" onclick="updateForm('color','${k}')"></div>`
+        ).join('')}
+      </div>`;
+  } else if (type === 'folder') {
+    body = `
+      <label class="modal-label">Folder name</label>
+      <input class="modal-input" id="mi-name" placeholder="e.g. Backend Docs" value="${escHtml(form.name||'')}" oninput="updateForm('name',this.value)" autofocus />
+      <label class="modal-label">Tag</label>
+      <select class="modal-input" onchange="updateForm('tag',this.value)">
+        ${Object.keys(COLORS).map(t => `<option value="${t}" ${form.tag===t?'selected':''}>${t}</option>`).join('')}
+      </select>
+      <label class="modal-label">Inside folder (optional)</label>
+      <select class="modal-input" onchange="updateForm('parentId',this.value)">
+        <option value="">Root of project</option>
+        ${rootFolders.map(f => `<option value="${f.id}" ${form.parentId===f.id?'selected':''}>${escHtml(f.name)}</option>`).join('')}
+      </select>`;
+  } else if (type === 'file') {
+    body = `
+      <label class="modal-label">File name</label>
+      <input class="modal-input" id="mi-name" placeholder="e.g. API Reference" value="${escHtml(form.name||'')}" oninput="updateForm('name',this.value)" autofocus />
+      <div class="modal-row">
+        <div>
+          <label class="modal-label">Type</label>
+          <select class="modal-input" onchange="updateForm('type',this.value)">
+            ${Object.keys(FILE_ICONS).map(t => `<option value="${t}" ${form.type===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="modal-label">Version</label>
+          <input class="modal-input" placeholder="1.0" value="${escHtml(form.version||'')}" oninput="updateForm('version',this.value)" />
+        </div>
+      </div>
+      <div class="modal-row">
+        <div>
+          <label class="modal-label">Tag</label>
+          <select class="modal-input" onchange="updateForm('tag',this.value)">
+            ${Object.keys(COLORS).map(t => `<option value="${t}" ${form.tag===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="modal-label">Status</label>
+          <select class="modal-input" onchange="updateForm('status',this.value)">
+            ${Object.keys(STATUS).map(s => `<option value="${s}" ${form.status===s?'selected':''}>${STATUS[s].label}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <label class="modal-label">Description</label>
+      <input class="modal-input" placeholder="Short description…" value="${escHtml(form.desc||'')}" oninput="updateForm('desc',this.value)" />
+      <label class="modal-label">Inside folder</label>
+      <select class="modal-input" style="margin-bottom:0" onchange="updateForm('folderId',this.value)">
+        <option value="">Root of project</option>
+        ${projectFolders.map(f => `<option value="${f.id}" ${form.folderId===f.id?'selected':''}>${escHtml(f.name)}</option>`).join('')}
+      </select>`;
+  }
+
+  const titles = { project: 'New project', folder: 'New folder', file: 'New file' };
+  return `
+  <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-title">
+        ${titles[type]}
+        <button class="btn-icon" onclick="closeModal()">✕</button>
+      </div>
+      ${body}
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitModal()">Create</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function getItems() {
+  if (state.search || state.tagFilter) {
+    const q = state.search.toLowerCase();
+    const tag = state.tagFilter;
+    return {
+      isSearch: true,
+      folders: state.folders.filter(f =>
+        (!q || f.name.toLowerCase().includes(q)) && (!tag || f.tag === tag)
+      ),
+      files: state.files.filter(f =>
+        (!q || f.name.toLowerCase().includes(q) || (f.desc||'').toLowerCase().includes(q)) &&
+        (!tag || f.tag === tag)
+      ),
+    };
+  }
+  if (!state.selProject) return { projects: state.projects };
+  return {
+    folders: state.folders.filter(f =>
+      f.projectId === state.selProject &&
+      (state.selFolder ? f.parentId === state.selFolder : !f.parentId)
+    ),
+    files: state.files.filter(f =>
+      f.projectId === state.selProject && f.folderId === (state.selFolder || null)
+    ),
+  };
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Event handlers (global functions called from HTML) ──
+function attachEvents() {
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+}
+
+function toggleSide()  { state.sideCollapsed = !state.sideCollapsed; render(); }
+function setView(v)    { state.view = v; render(); }
+function goHome()      { state.selProject = null; state.selFolder = null; state.search = ''; state.tagFilter = ''; render(); }
+function selectProject(id) { state.selProject = id; state.selFolder = null; render(); }
+function selectFolder(id)  { state.selFolder = id; render(); }
+function onSearch(v)       { state.search = v; renderContent(); }
+function onTagFilter(v)    { state.tagFilter = v; renderContent(); }
+
+function renderContent() {
+  const el = document.getElementById('content');
+  if (el) el.innerHTML = buildContent();
+}
+
+function openModal(type) {
+  if (type !== 'project' && !state.selProject) { showToast('Select a project first'); return; }
+  const defaults = {
+    project: { name:'', desc:'', color:'blue' },
+    folder:  { name:'', tag:'general', parentId:'' },
+    file:    { name:'', type:'doc', tag:'general', desc:'', version:'1.0', folderId:'', status:'draft' },
+  };
+  state.form = { ...defaults[type] };
+  if (type === 'folder' && state.selFolder) state.form.parentId = state.selFolder;
+  if (type === 'file' && state.selFolder) state.form.folderId = state.selFolder;
+  state.modal = type;
+  render();
+  setTimeout(() => { const n = document.getElementById('mi-name'); if (n) n.focus(); }, 50);
+}
+
+function closeModal() { state.modal = null; render(); }
+
+function updateForm(key, val) {
+  state.form[key] = val;
+  if (key === 'color') {
+    document.querySelectorAll('.color-dot').forEach(d => {
+      d.classList.toggle('selected', d.getAttribute('onclick').includes(`'${val}'`));
+    });
+  }
+}
+
+function submitModal() {
+  const name = (state.form.name || '').trim();
+  if (!name) { showToast('Name is required'); return; }
+  const id = uid();
+  if (state.modal === 'project') {
+    state.projects.push({ id, name, desc: state.form.desc||'', color: state.form.color||'blue', created: Date.now() });
+    showToast('Project created ✓');
+  } else if (state.modal === 'folder') {
+    state.folders.push({ id, name, projectId: state.selProject, parentId: state.form.parentId||null, tag: state.form.tag||'general', created: Date.now() });
+    if (state.form.parentId) state.selFolder = state.form.parentId;
+    showToast('Folder created ✓');
+  } else if (state.modal === 'file') {
+    state.files.push({ id, name, projectId: state.selProject, folderId: state.form.folderId||null, type: state.form.type||'doc', tag: state.form.tag||'general', desc: state.form.desc||'', version: state.form.version||'1.0', status: state.form.status||'draft', created: Date.now() });
+    if (state.form.folderId) state.selFolder = state.form.folderId;
+    showToast('File added ✓');
+  }
+  saveState();
+  state.modal = null;
+  render();
+}
+
+function deleteItem(type, id) {
+  if (type === 'project') {
+    state.projects = state.projects.filter(p => p.id !== id);
+    state.folders  = state.folders.filter(f => f.projectId !== id);
+    state.files    = state.files.filter(f => f.projectId !== id);
+    if (state.selProject === id) { state.selProject = null; state.selFolder = null; }
+    showToast('Project deleted');
+  } else if (type === 'folder') {
+    state.folders = state.folders.filter(f => f.id !== id && f.parentId !== id);
+    state.files   = state.files.filter(f => f.folderId !== id);
+    if (state.selFolder === id) state.selFolder = null;
+    showToast('Folder deleted');
+  } else {
+    state.files = state.files.filter(f => f.id !== id);
+    showToast('File deleted');
+  }
+  saveState();
+  render();
+}
+
+// ── Boot ──
+loadState();
+render();
+</script>
+</body>
+</html>
